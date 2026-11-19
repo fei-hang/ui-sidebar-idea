@@ -1,0 +1,23 @@
+/**
+ * The panel body's own layout: a scroll container that fills the column the
+ * activity rail opened, and one line of copy when the tree cannot be drawn.
+ */
+.tree {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 6px 8px;
+  box-sizing: border-box;
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+.note {
+  margin: 8px 6px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  line-height: 18px;
+  overflow-wrap: anywhere;
+}

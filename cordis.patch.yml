@@ -1,0 +1,24 @@
+# This bundle's patch layer: disable the stock sidebar column, then insert the
+# Idea one.
+#
+# Both packages occupy the 'sidebar' seat and declare the same child seats
+# (sidebar.brand.mark, sidebar.button.top, ...), so a load with both live fails
+# on the duplicate declaration. The override below lands because a bundle's
+# patch layer applies in dsh.profile.bundles order and an installed bundle is
+# appended, so this file runs after the dsh-web-app layer that inserts
+# 'ui-sidebar'.
+#
+# A profile whose bundles do not carry 'ui-sidebar' (headless, sdk) logs
+# "patch: entry "ui-sidebar" not found" and mounts this column with nothing to
+# replace, which is the composition it asked for.
+#
+# The inserted row's id matches this package rather than 'ui-sidebar-idea',
+# which an installation built from the harness repository already uses for its
+# own copy of this column; two rows sharing an id collide.
+
+- id: ui-sidebar
+  disabled: true
+
+- insert:
+    - id: dsh-client-ui-sidebar-idea
+      name: dsh-client-ui-sidebar-idea

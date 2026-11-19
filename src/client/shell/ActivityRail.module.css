@@ -1,0 +1,94 @@
+/* Activity rail: the always-visible button strip at the sidebar's left edge.
+   A 48px column between the window edge and the sidebar body, matching the
+   VS Code activity bar in the design reference: 40px button boxes centered on
+   a 24px icon column, 12px vertical rhythm, and a flexible gap that pushes
+   the tail group to the bottom. */
+
+.rail {
+  --dsh-rail-width: 48px;
+  --dsh-rail-button: 40px;
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: var(--dsh-rail-width);
+  height: 100%;
+  padding: 6px 0;
+  box-sizing: border-box;
+  align-items: center;
+  background: var(--dsw-specific-rail-fill);
+}
+
+/* Windows desktop, collapsed: ui-layout zeroes the sidebar track, so anything laid
+   out inside it is clipped to nothing. The rail alone steps out of that column and
+   pins itself to the window edge — the column keeps animating as it always did,
+   and the panel column simply slides under the strip. */
+.railFixed {
+  position: fixed;
+  top: var(--dsh-windows-titlebar-height);
+  bottom: 0;
+  left: 0;
+  height: auto;
+  z-index: 20;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.gap {
+  flex: 1;
+  min-height: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dsh-rail-button);
+  height: var(--dsh-rail-button);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* Drop indicator: the row the dragged button lands on. */
+.rowOver {
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
+}
+
+.panelButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dsh-rail-button);
+  height: var(--dsh-rail-button);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.panelButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.panelButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l1);
+  outline-offset: 1px;
+}
+
+.panelButtonActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
