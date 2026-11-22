@@ -1044,6 +1044,13 @@
   width: 100%;
 }
 
+/* Second seat for Settings while a rail body fills the column: it must stay
+   mounted so its trigger row (and the dialog it portals to <body>) survives,
+   but it must not paint or take layout inside the panel column. */
+.settingsStash {
+  display: none;
+}
+
 .footerActions {
   display: flex;
 }

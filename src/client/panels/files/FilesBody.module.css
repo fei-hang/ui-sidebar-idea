@@ -2,6 +2,16 @@
  * The panel body's own layout: a scroll container that fills the column the
  * activity rail opened, and one line of copy when the tree cannot be drawn.
  */
+/* The whole body is one right-click target, so this box — not the scrolling
+   tree — carries the context-menu listener and has to fill the column even when
+   the tree is a single line of copy. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
 .tree {
   display: flex;
   flex-direction: column;
@@ -12,6 +22,72 @@
   box-sizing: border-box;
   --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* The workspace root's own row: the tree never draws the root, so the panel
+   draws it here and indents everything below by one level. */
+.rootRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  flex: none;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--dsw-radius-md, 8px);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rootRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.rootRow:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l1);
+  outline-offset: -2px;
+}
+
+.chevron {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 120ms var(--ds-ease-in-out, ease);
+}
+
+.chevronOpen {
+  transform: rotate(90deg);
+}
+
+.folder {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.rootName {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* One level of indent, matching the tree's own 18px step. */
+.nested {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding-left: 18px;
+  box-sizing: border-box;
 }
 
 .note {

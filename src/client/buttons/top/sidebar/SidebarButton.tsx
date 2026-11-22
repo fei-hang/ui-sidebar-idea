@@ -5,34 +5,22 @@
  * together under `buttons/top`.
  */
 import clsx from 'clsx'
+import { FishLogo } from '@deepseek-ai/dsh-client-ui-primitives'
 import css from './SidebarButton.module.css'
 
 /**
- * Panel-left glyph of the built-in panel button.
+ * Whale mark of the built-in panel button.
  *
- * Drawn here rather than taken from the primitives icon set: those icons are
+ * The glyph is the product's own brand mark, drawn inline by `FishLogo`: that
+ * component emits a plain <path fill="currentColor">, so it survives inside this
+ * pinned strip. (The product icon set is deliberately not used here — those are
  * <use> references into a sprite injected elsewhere in the document, and inside
- * this pinned strip the reference resolves to nothing — the button kept its box
- * and its accessible name but painted no glyph. The inline markup below is the
- * same geometry (16-unit viewBox, 1px stroke, currentColor) and cannot depend on
- * where the sprite happens to live.
+ * this strip the reference resolves to nothing, leaving a blank box.)
+ *
+ * The mark is a wide silhouette rather than a square icon, so it is sized by its
+ * width and reads a little larger than the 18px line icons beside it.
  */
-function PanelLeftIcon() {
-  return (
-    <svg
-      width={18}
-      height={18}
-      viewBox="0 0 16 16"
-      fill="none"
-      strokeWidth={1}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M13.5 1.5H2.5C1.94772 1.5 1.5 1.94772 1.5 2.5V13.5C1.5 14.0523 1.94772 14.5 2.5 14.5H13.5C14.0523 14.5 14.5 14.0523 14.5 13.5V2.5C14.5 1.94772 14.0523 1.5 13.5 1.5Z" />
-      <path d="M5.5 1.5V14.5" />
-    </svg>
-  )
-}
+const MARK_SIZE = 20
 
 /** Props the rail strip hands its built-in sidebar button. */
 export interface SidebarButtonProps {
@@ -63,7 +51,9 @@ export function SidebarButton(props: SidebarButtonProps) {
       aria-pressed={props.active}
       onClick={props.onClick}
     >
-      <PanelLeftIcon />
+      <span className={css.mark}>
+        <FishLogo size={MARK_SIZE} />
+      </span>
     </button>
   )
 }

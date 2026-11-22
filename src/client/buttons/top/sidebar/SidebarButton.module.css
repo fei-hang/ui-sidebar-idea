@@ -29,3 +29,14 @@
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--dsw-alias-label-primary);
 }
+
+/* The whale mark is filled art, not a stroked icon: it takes the label colour
+   (white at rest) instead of the dimmed secondary tone the line icons use, and
+   centres its own aspect ratio inside the 40px box. */
+.mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--dsw-alias-label-primary);
+  line-height: 0;
+}

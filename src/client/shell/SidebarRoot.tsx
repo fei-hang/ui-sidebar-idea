@@ -583,6 +583,15 @@ export function SidebarRoot({
         </SessionProvider>
       </div>
       )}
+      {/* The settings seat stays mounted while a rail body owns the column: its
+          registrant owns the settings dialog state AND the settings.open
+          command, so unmounting it here would dispose the shortcut (no handler
+          while a panel is open) and replay the press on remount. The trigger row
+          itself is stashed — a rail body fills the column — but the dialog is
+          portalled beside #root, so it still opens over the panel. */}
+      <div className={css.settingsStash} aria-hidden="true">
+        {selectedButton === null ? null : renderSlot('sidebar.settings', { wide })}
+      </div>
       </div>
     </div>
   )
