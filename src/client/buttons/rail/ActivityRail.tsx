@@ -14,41 +14,22 @@
  */
 import { useState, type DragEvent } from 'react'
 import clsx from 'clsx'
-import type { ButtonRail } from '../rail/button-order.ts'
-import type { SidebarButtonMetadata, SidebarRootComponentProps } from '../contract/slots.ts'
+import type { ButtonRail } from '../../status/button-order.ts'
+import type { SidebarButtonMetadata, SidebarRootComponentProps } from '../../contract/slots.ts'
+import { SidebarButton } from '../top/sidebar/SidebarButton.tsx'
 import css from './ActivityRail.module.css'
-
-/**
- * Panel-left glyph of the built-in panel button.
- *
- * Drawn here rather than taken from the primitives icon set: those icons are
- * <use> references into a sprite injected elsewhere in the document, and inside
- * this pinned strip the reference resolves to nothing — the button kept its box
- * and its accessible name but painted no glyph. The inline markup below is the
- * same geometry (16-unit viewBox, 1px stroke, currentColor) and cannot depend on
- * where the sprite happens to live.
- */
-function PanelLeftIcon() {
-  return (
-    <svg
-      width={18}
-      height={18}
-      viewBox="0 0 16 16"
-      fill="none"
-      strokeWidth={1}
-      stroke="currentColor"
-      aria-hidden="true"
-    >
-      <path d="M13.5 1.5H2.5C1.94772 1.5 1.5 1.94772 1.5 2.5V13.5C1.5 14.0523 1.94772 14.5 2.5 14.5H13.5C14.0523 14.5 14.5 14.0523 14.5 13.5V2.5C14.5 1.94772 14.0523 1.5 13.5 1.5Z" />
-      <path d="M5.5 1.5V14.5" />
-    </svg>
-  )
-}
 
 /** List id the built-in panel button reports; registrants must not reuse it. */
 export const SIDEBAR_BUTTON_ID = 'sidebar'
 
-/** Width the rail reserves; the column subtracts it from the width it is given. */
+/**
+ * Width the rail reserves; the column subtracts it from the width it is given.
+ *
+ * The same number is declared once as `--dsh-rail-width` on the page
+ * (shell/SidebarRoot.module.css), which is what actually draws the rail and the
+ * bottom panel's gutter; this copy exists because the column's frozen width is
+ * arithmetic, not a style. Keep the two equal.
+ */
 export const RAIL_WIDTH = 48
 
 /** Props the sidebar shell hands the rail. */
@@ -63,8 +44,6 @@ export interface ActivityRailProps {
   readonly panelActive: boolean
   /** Accessible name of the strip. */
   readonly label: string
-  /** Accessible name of the built-in panel button. */
-  readonly panelLabel: string
   /** Select one rail id. */
   readonly onSelect: (id: string) => void
   /** Move one rail button within its own rail. */
@@ -94,8 +73,17 @@ export function ActivityRail(props: ActivityRailProps) {
   const [dragging, setDragging] = useState<Dragging | null>(null)
   const [over, setOver] = useState<string | null>(null)
 
-  const dropTarget = (rail: ButtonRail, targetId: string): string | null => {
-    if (rail === 'top') return targetId
+  const dropTarget = (rail: ButtonRail, targetId: string, sourceId: string): string | null => {
+    if (rail === 'top') {
+      // Dropping onto a row means "take that row's place". Dragging downward,
+      // the source already sits before the target, so anchoring to the target
+      // would leave the order unchanged; anchor to the target's successor
+      // instead, which is the row the user is dropping past.
+      const source = props.top.findIndex(item => item.id === sourceId)
+      const target = props.top.findIndex(item => item.id === targetId)
+      if (source !== -1 && target !== -1 && source < target) return props.top[target + 1]?.id ?? null
+      return targetId
+    }
     // The tail renders bottom-up, so a row dropped above another sits later in
     // stored order: it belongs before that row's successor.
     const index = props.tail.findIndex(item => item.id === targetId)
@@ -126,7 +114,7 @@ export function ActivityRail(props: ActivityRailProps) {
       const source = dragging
       finish()
       if (source === null || source.rail !== rail || source.id === item.id) return
-      props.onMove(rail, source.id, dropTarget(rail, item.id))
+      props.onMove(rail, source.id, dropTarget(rail, item.id, source.id))
     }
     return (
       <div
@@ -141,17 +129,26 @@ export function ActivityRail(props: ActivityRailProps) {
         onDrop={onDrop}
         onDragEnd={finish}
       >
-        {rail === 'top'
-          ? props.renderSlot('sidebar.button.top', {
-            size: 18,
-            active,
-            onSelect: () => { props.onSelect(item.id) },
-          }, { only: item.id, fallback: null })
-          : props.renderSlot('sidebar.button.tail', {
-            size: 18,
-            active,
-            onSelect: () => { props.onSelect(item.id) },
-          }, { only: item.id, fallback: null })}
+        {rail === 'top' && item.id === SIDEBAR_BUTTON_ID
+          ? (
+            <SidebarButton
+              active={props.panelActive}
+              label={item.label}
+              toggle={props.panelToggle === true}
+              onClick={props.onPanel}
+            />
+          )
+          : rail === 'top'
+            ? props.renderSlot('sidebar.button.top', {
+              size: 18,
+              active,
+              onSelect: () => { props.onSelect(item.id) },
+            }, { only: item.id, fallback: null })
+            : props.renderSlot('sidebar.button.tail', {
+              size: 18,
+              active,
+              onSelect: () => { props.onSelect(item.id) },
+            }, { only: item.id, fallback: null })}
       </div>
     )
   }
@@ -162,22 +159,9 @@ export function ActivityRail(props: ActivityRailProps) {
       role="toolbar"
       aria-label={props.label}
       aria-orientation="vertical"
+      data-sidebar-rail=""
     >
       <div className={css.group}>
-        <div className={css.row}>
-          <button
-            type="button"
-            // On Windows this is the sidebar's only toggle (the caption copy is
-            // hidden), so it carries the identity the shell restores focus to.
-            data-sidebar-toggle={props.panelToggle === true ? true : undefined}
-            className={clsx(css.panelButton, props.panelActive && css.panelButtonActive)}
-            aria-label={props.panelLabel}
-            aria-pressed={props.panelActive}
-            onClick={props.onPanel}
-          >
-            <PanelLeftIcon />
-          </button>
-        </div>
         {props.top.map(item => row('top', item))}
       </div>
       <div className={css.gap} />

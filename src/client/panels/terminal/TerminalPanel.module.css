@@ -1,0 +1,181 @@
+/* A grid row of the frame; the frame shrinks the columns by exactly this box.
+   The box itself paints nothing: its two columns do. The gutter under the rail
+   keeps the rail's fill so the strip runs to the bottom of the window, and the
+   panel's own column is the terminal's black — the same black the sidebar body
+   uses, so the strip above and the panel below read as one surface. */
+.panel {
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+  overflow: hidden;
+  /* Opening and closing animate the row's height, which is what shrinks the
+     frame above it. The two directions are not the same gesture played
+     backwards: opening arrives and is given a little longer to settle, closing
+     leaves on a tighter curve so it is gone before the eye starts looking for
+     where it went. The tokens are the sidebar column's own, so the rail, the
+     column and this row share one clock and one pair of curves. */
+  transition:
+    height var(--dsh-motion-open, 260ms) var(--dsh-motion-ease-open, cubic-bezier(0.2, 0.9, 0.25, 1));
+  /* The row paints the rail's fill but keeps square corners: the strip under the
+     rail has to run unbroken to the window's edge. The rounded box is the screen
+     inside it. */
+  background: var(--dsh-idea-rail-fill, var(--dsw-specific-sidebar-fill));
+  color: var(--dsw-alias-label-primary);
+}
+
+/* The closing direction, on the closing clock. The component marks the row for
+   the whole slide so the height it is travelling to is a departure, not a
+   collapse: without the marker both directions would read the opening curve and
+   the row would appear to hesitate on its way out. */
+.panel[data-closing] {
+  transition:
+    height var(--dsh-motion-close, 220ms) var(--dsh-motion-ease-close, cubic-bezier(0.32, 0.72, 0.35, 1));
+}
+
+/* While the handle is held the edge must sit exactly under the pointer, so the
+   transition is off: an eased height would lag one curve behind the drag. The
+   resize cursor and the text selection block cover the whole panel, because a
+   fast drag leaves the four-pixel strip almost immediately. */
+.panel[data-dragging] {
+  transition: none;
+  user-select: none;
+}
+
+.panel[data-dragging],
+.panel[data-dragging] * {
+  cursor: ns-resize !important;
+}
+
+/* Head plus screen, in the rail's fill: the black is the screen's own slab, so
+   the grab strip above the head and the head itself stay one material. Painting
+   this box black instead put a black lip over the tabs and cut the corners in the
+   wrong place.
+   This is also the box that keeps the rail's strip clear. The strip is the rail's
+   own 48px, held open as padding rather than as a sibling block: the padding is
+   inside the box that paints the strip's fill, so the head and the screen simply
+   begin after it and nothing can shift against it — the tabs cannot move by a
+   pixel without the screen moving with them. The width is the rail's own token,
+   not a measurement of the column beside it, so the panel stays self-contained
+   and no observer follows the layout at runtime.
+   The padding is fixed, deliberately. It used to shrink to nothing as the sidebar
+   collapsed, handing the strip back to the layout frame at the same rate, and the
+   sum was constant — but a constant sum is not a constant box. Both halves were
+   travelling, so this box's own geometry changed on every frame of the gesture:
+   its left edge, its width, and therefore the origin every tab label and close
+   button was rasterised from. The glyphs were re-hinted at a new sub-pixel
+   offset each frame, which reads as the close buttons twitching, worst on the
+   widest labels. The shell now cancels the frame's reservation under this row
+   instead (the [data-shell-bottom] rule in shell/SidebarRoot.module.css), so the
+   row is pinned to the window's left edge from the first frame to the last and
+   this box simply never moves. One number, held once. */
+.content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  /* Border box: the strip is taken out of this box's width, not added to it, so
+     the panel never exceeds the row it was given. */
+  box-sizing: border-box;
+  padding-left: var(--dsh-rail-width, 48px);
+  overflow: hidden;
+  background: var(--dsh-idea-rail-fill, var(--dsw-specific-sidebar-fill));
+}
+
+/* Drawer mode only: there the sidebar floats over the content and covers the rail
+   outright, so the strip behind it is already occupied. Nothing to hand over —
+   this is a static rule, not half of an animation. */
+:global([data-sidebar-drawer]) .content {
+  padding-left: 0;
+}
+
+/* Grab strip: thin, invisible, and the only resize affordance. */
+.handle {
+  flex: none;
+  height: 4px;
+  cursor: ns-resize;
+  background: transparent;
+  touch-action: none;
+}
+
+.handle:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+/* The head is the rail's fill, not the panel's: it is a tool strip, and the
+   contrast is what separates it from the screen under it. */
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px 0 12px;
+  background: var(--dsh-idea-rail-fill, var(--dsw-specific-sidebar-fill));
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.close {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm, 4px);
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l1);
+  outline-offset: 1px;
+}
+
+/* The screen's black starts below the head: the head is the tool strip, and the
+   terminal owns everything under it. This is the rounded slab — it rounds inside
+   the rail-filled box, so its corners show the strip, the same way the sidebar
+   body's corners do. Top pair only: the screen is flush with the window's bottom
+   edge. */
+.body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--dsh-idea-body-fill, #000);
+  border-radius: var(--dsw-radius-md, 12px) var(--dsw-radius-md, 12px) 0 0;
+}
+
+.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .panel[data-closing] {
+    transition: none;
+  }
+}

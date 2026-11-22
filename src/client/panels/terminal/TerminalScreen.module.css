@@ -1,0 +1,16 @@
+/* The emulator sizes itself; the box only has to give it room. */
+.screen {
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.screen :global(.xterm) {
+  height: 100%;
+}
+
+.screen :global(.xterm-viewport) {
+  scrollbar-width: thin;
+}

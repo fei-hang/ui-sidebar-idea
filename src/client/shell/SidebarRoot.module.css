@@ -1,3 +1,38 @@
+/* The column body and the terminal panel share one black: the rail is the only
+   surface that keeps the sidebar tint, so the strip and the body it opens read as
+   two materials rather than one gradient. Declared on the page because the bottom
+   panel lives outside this column and has to reach the same value. */
+:global(html) {
+  --dsh-idea-body-fill: #000;
+  /* The rail's own paint. There is no rail token in the theme — the strip used to
+     fall through to the layout column's sidebar fill, and the bottom panel (which
+     is outside that column) fell through to the page instead, so the strip changed
+     colour where the panel began. Naming the colour once fixes both halves. */
+  --dsh-idea-rail-fill: var(--dsw-specific-sidebar-fill);
+  /* The rail's own width, for the same reason: the bottom panel's gutter stands
+     in for the strip below the rail, so it has to be exactly as wide as the
+     strip above it. One declaration on the page serves both, and the column's
+     width arithmetic (RAIL_WIDTH in buttons/rail/ActivityRail.tsx) reads the same
+     number. */
+  --dsh-rail-width: 48px;
+  /* One clock for the two panels that open and close inside this shell: the
+     sidebar column and the terminal row under it. One is a grid track and the
+     other is a height, but they are a single gesture to the eye — the rail can
+     start both at once, so two sets of numbers would be two rhythms in one
+     movement. Opening arrives and is given a little more room to settle;
+     closing leaves and is over sooner, which is what keeps a collapse from
+     reading as the open played backwards. Both panels read these, and both
+     sheets collapse them to no motion under prefers-reduced-motion. */
+  --dsh-motion-open: 260ms;
+  --dsh-motion-close: 220ms;
+  --dsh-motion-ease-open: cubic-bezier(0.2, 0.9, 0.25, 1);
+  --dsh-motion-ease-close: cubic-bezier(0.32, 0.72, 0.35, 1);
+  /* The rail's own entrance, which starts after the track has settled. Kept
+     shorter than either panel beat so it reads as a flourish on the end of the
+     collapse rather than a third movement. */
+  --dsh-motion-rail-in: 150ms;
+}
+
 /* Sidebar column: vertical stack, padding 8/6, sidebar
    fill and desktop divider painted by the layout column. Collapse is a
    slide + crossfade, not a morph: the content holds its frozen expanded
@@ -15,7 +50,10 @@
   width: 100%;
   height: 100%;
   min-width: 0;
-  background: var(--dsw-specific-rail-fill);
+  /* Two surfaces: the rail strip keeps the rail fill, the body behind it is the
+     terminal's black. The panel's gutter paints the strip below the rail in the
+     same fill, so the strip reads as one column top to bottom. */
+  background: var(--dsh-idea-rail-fill, var(--dsw-specific-sidebar-fill));
 }
 
 .body {
@@ -27,40 +65,160 @@
   overflow: hidden;
 }
 
-/* The pinned rail is out of flow, so this frame reserves its strip in both
-   states — the body then lines up with the panel column instead of sitting
-   under the icons. The body's inline width already excludes the rail, so
-   border-box padding keeps the two adding back up to the column width. */
+/* The strip is one number that changes hands, so it is declared once and read by
+   every owner: the sidebar column while it still has a track, the layout frame
+   once that track is gone, and the bottom row (which has to cancel it). It has to
+   interpolate, not jump, and it has to be readable by descendants — registering
+   it as a length is what buys both. An unregistered custom property is an opaque
+   token: it would snap, and every reader would have to animate its own copy of
+   the handover, which is exactly how two halves of one movement drift apart. */
+@property --dsh-frame-reserve {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+/* The pinned rail is out of flow, so its strip has to be reserved by whoever
+   currently spans it. The column body's inline width already excludes the rail,
+   so border-box padding keeps the two adding back up to the column width. The
+   column holds whatever the frame has not taken: the two add up to the strip at
+   every instant, so the body's left edge never moves and only its right edge
+   travels with the track. */
 :global([data-windows-titlebar]) .frame {
   box-sizing: border-box;
-  padding-left: 48px;
+  padding-left: calc(var(--dsh-rail-width, 48px) - var(--dsh-frame-reserve, 0px));
 }
 
 /* Windows desktop: ui-layout drops the collapsed sidebar track to zero width, so
    everything laid out inside it is clipped away. The rail is pinned to the window
-   edge instead (.railFixed in ActivityRail.module.css) and the strip it occupies
+   edge instead (the pinned rail in buttons/rail/ActivityRail.module.css) and the strip it occupies
    is reserved here — by the layout frame itself, addressed through its own
-   markers, because its class names belong to ui-layout and are hashed. */
+   markers, because its class names belong to ui-layout and are hashed.
+   Only the value is set here. The frame's own padding is declared once, for both
+   states, in the rule below: a second declaration that exists in one state and
+   not the other is a jump waiting to happen (see there). */
 :global([data-windows-titlebar]) :global([data-sidebar-collapsed]) {
+  --dsh-frame-reserve: var(--dsh-rail-width, 48px);
   box-sizing: border-box;
-  padding-left: 48px;
 }
 
-/* The reservation has to travel with the track. Without it the conversation first
-   widens to the whole window (the track is gone, nothing holds it back) and only
-   then jumps clear of the rail — the flash on every collapse. Both properties
-   must sit in one declaration: naming only padding-left would replace
-   ui-layout's own grid-template-columns transition and stop the column
-   animating at all. */
-:global([data-windows-titlebar]) :global([data-animating]) {
+/* The frame's reservation is read from the one registered property in *both*
+   states, and this is the rule that makes that true. The frame root is the
+   element that holds the bottom row, so it is reachable without touching
+   ui-layout's hashed class names.
+   Why one expression and not two: the padding used to be declared only in the
+   collapsed state, so on expand it fell back to zero on the first frame while
+   the bottom row's own compensation (below) kept reading the property, which was
+   still travelling 48px -> 0. For the length of the transition the row sat up to
+   a full rail width to the left of the window edge, carrying the terminal panel
+   with it, and then snapped back — the tab strip's close buttons appearing to
+   jump sideways and return. Collapsing never showed it: there the padding
+   appears together with the property, so the two halves cancel from the first
+   frame. Declaring the padding as the property itself makes both directions
+   symmetric, because a length that only ever reads the animated value cannot
+   disagree with it. */
+:global([data-windows-titlebar]) :global(*:has(> [data-shell-bottom])) {
+  box-sizing: border-box;
+  padding-left: var(--dsh-frame-reserve, 0px);
+}
+
+/* The bottom row spans the whole frame, so the frame's reservation would start it
+   48px to the right — and during the collapse that edge travels, which re-lays
+   out everything inside the terminal panel frame by frame: the tab strip is
+   re-rasterised at a slightly different sub-pixel offset on every frame and the
+   close buttons appear to twitch. The row is a child of the layout frame, so it
+   inherits that reservation as its own content-box offset: it starts 48px in when
+   collapsed and 0px in when expanded, travelling the whole way while the columns
+   above do. A grid item with a negative left margin of exactly the reservation
+   both shifts left by it and grows by it, so its border box starts on the
+   window's left edge and still ends on the frame's right edge on every frame —
+   left edge, width and right edge all constant, nothing inside re-lays out. The
+   panel then holds the strip open itself, once, with a fixed padding that never
+   changes: one box, one number, no handover to animate.
+   Drawer mode is excluded: there the row is not travelling (a drawer collapse is
+   instant), and the panel zeroes its own padding because the floating drawer
+   covers the rail outright. */
+:global([data-windows-titlebar]):not([data-sidebar-drawer]) :global([data-shell-bottom]) {
+  margin-left: calc(-1 * var(--dsh-frame-reserve, 0px));
+}
+
+/* The track and the two boxes inside it are one movement, so all three carry the
+   same duration and curve: a different easing on either side shows up as the body
+   sliding inside a track that already stopped. The stock rule eases in and out
+   and therefore spends the middle of the gesture at half speed, which reads as a
+   lag between the pointer and the column; this curve spends its travel early and
+   settles gently, so the column arrives with the track.
+   On Windows the titlebar's left reservation is the other half of the same
+   movement, and it is the half that used to snap: the frame keeps 48px while
+   collapsed and none while open, so the boundary the user reads as the column's
+   edge is reservation plus track. Snapping it leaves the boundary 48px too far
+   right on the first frame and then sliding it back — the column appears to
+   swell before it shrinks, on every collapse. Both properties must sit in one
+   declaration: naming only the reservation would replace ui-layout's own
+   grid-template-columns transition and stop the column animating at all.
+   ui-layout writes the track's own transition against the same curve, so the
+   curve is replaced at the source: the frame is the element that carries the
+   animation flag, and a custom property set on it beats the value it would
+   otherwise inherit from the theme's root.
+   This rule is also the one place that has to outrank ui-layout's own
+   .frame[data-animating] transition, which is (0, 2, 0) and may be injected
+   after this sheet: at equal weight the later declaration wins outright and
+   the reservation snaps instead of travelling. Spelling the titlebar attribute
+   on the html element itself puts this rule one step above it, so both halves
+   of the movement survive. */
+:global([data-animating]) {
+  --ds-ease-in-out: var(--dsh-motion-ease-open);
+  /* ui-layout's own track rule reads this token with no fallback, so leaving it
+     undefined does not fall back to a default duration: the whole transition
+     declaration becomes invalid at computed-value time and the track snaps to
+     its new width in one frame. Naming it here gives every platform the same
+     clock the two panels already share. */
+  --ds-transition-duration-slow: var(--dsh-motion-open, 260ms);
+}
+
+:global(html[data-windows-titlebar]) :global([data-animating]:not([data-dragging])) {
   transition:
-    grid-template-columns var(--ds-transition-duration-slow, 0.3s) var(--ds-ease-in-out, ease),
-    padding-left var(--ds-transition-duration-slow, 0.3s) var(--ds-ease-in-out, ease);
+    grid-template-columns var(--dsh-motion-open, 260ms) var(--dsh-motion-ease-open, ease),
+    --dsh-frame-reserve var(--dsh-motion-open, 260ms) var(--dsh-motion-ease-open, ease);
+}
+
+/* The same track, travelling the other way, on the other clock. ui-layout writes
+   the collapsed marker together with the new track width — in the same commit,
+   before the browser has a chance to interpolate anything — so the attribute is
+   already on the frame when this transition is picked up, and it is not on the
+   frame when the column expands. That is the whole test for which direction the
+   gesture is going, and it needs no timer and no extra state. */
+:global(html[data-windows-titlebar]) :global([data-animating][data-sidebar-collapsed]:not([data-dragging])) {
+  transition:
+    grid-template-columns var(--dsh-motion-close, 220ms) var(--dsh-motion-ease-close, ease),
+    --dsh-frame-reserve var(--dsh-motion-close, 220ms) var(--dsh-motion-ease-close, ease);
+}
+
+/* The same direction, told to everything else that reads the inherited pair:
+   ui-layout's track on a platform the rule above does not address, and the
+   content fade below, which is inside this frame and inherits both. */
+:global([data-animating][data-sidebar-collapsed]:not([data-dragging])) {
+  --ds-transition-duration-slow: var(--dsh-motion-close, 220ms);
+  --ds-ease-in-out: var(--dsh-motion-ease-close, ease);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  :global([data-windows-titlebar]) :global([data-animating]) {
+  :global(html[data-windows-titlebar]) :global([data-animating]:not([data-dragging])),
+  :global(html[data-windows-titlebar]) :global([data-animating][data-sidebar-collapsed]:not([data-dragging])) {
     transition: none;
+  }
+
+  /* Zero the clocks themselves, not just the transitions that read them. Two
+     readers are outside these rules: ui-layout's own track transition, which
+     the titlebar rules above do not address on other platforms, and the
+     component's settle timer, which reads --dsh-motion-close to decide when to
+     drop the frozen wide content. Zeroing the token settles both at once, so a
+     reduced-motion collapse unmounts immediately instead of holding a
+     fully-faded copy for 220ms. */
+  :global(html) {
+    --dsh-motion-open: 0ms;
+    --dsh-motion-close: 0ms;
+    --dsh-motion-rail-in: 0ms;
   }
 }
 
@@ -70,7 +228,13 @@
   display: none;
 }
 
-.root {
+/* The two bodies the rail can open — the column's own panel list and a
+   registrant's panel — are one surface: same black slab, same rounding, same
+   inset, same type. The shell draws both boxes so a registrant supplies content
+   only and can never drift from the column it sits in. The shared block lives
+   here and is named by both selectors rather than being copied twice. */
+.root,
+.buttonPanel {
   --dsh-sidebar-inline-padding: 8px;
   --dsh-sidebar-row-padding: 12px;
   --dsh-sidebar-label-gap: 6px;
@@ -80,7 +244,11 @@
   height: 100%;
   padding: 6px var(--dsh-sidebar-inline-padding);
   box-sizing: border-box;
-  background: var(--dsw-specific-sidebar-fill);
+  background: var(--dsh-idea-body-fill, #000);
+  /* The body is a slab laid on the rail's fill, not the fill itself: the rail
+     runs the window's full height, so rounding the black exposes that same
+     strip at the four corners instead of cutting a notch out of the page. */
+  border-radius: var(--dsw-radius-md, 12px);
   color: var(--dsw-alias-label-primary);
   font-size: 14px;
   /* The sidebar is elevated above the conversation surface, so a revealed
@@ -89,8 +257,22 @@
   --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
 }
 
-:global([data-animating]:not([data-dragging])) .root {
-  transition: width var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+/* The column's width and the frame's grid track have to finish together, or the
+   body lags a track that already moved. Both now read the same two tokens the
+   track does, so they cannot drift apart when the clocks change. Both bodies
+   carry it: a panel opened while the column is collapsing travels with the
+   column instead of snapping to the track's final width. */
+:global([data-animating]:not([data-dragging])) .root,
+:global([data-animating]:not([data-dragging])) .buttonPanel {
+  transition: width var(--dsh-motion-open, 260ms) var(--dsh-motion-ease-open, ease);
+}
+
+/* The body travels on the same clock as the track it sits in, in both
+   directions — the collapsed marker is on the frame, which is this rule's
+   ancestor, so the body can read the direction the same way the track does. */
+:global([data-animating][data-sidebar-collapsed]:not([data-dragging])) .root,
+:global([data-animating][data-sidebar-collapsed]:not([data-dragging])) .buttonPanel {
+  transition: width var(--dsh-motion-close, 220ms) var(--dsh-motion-ease-close, ease);
 }
 
 /* macOS desktop: the AppFrame column owns the translucent sidebar tint; an
@@ -200,36 +382,43 @@
   --dsh-scrollbar-thumb-hover: transparent;
 }
 
-/* Collapse phase 1: the whole frozen-width content fades out in place over
-   150ms; at settle the children unmount/snap to the rail layout. */
+/* Collapse phase 1: the whole frozen-width content fades out in place while the
+   track travels, and at settle the children unmount/snap to the rail layout. The
+   fade is the closing clock, so the content is gone exactly when the column
+   finishes arriving rather than 70ms before it — the earlier 150ms number was
+   written against a track that no longer exists. SidebarRoot.tsx's
+   COLLAPSE_SETTLE_MS is the same number, and both read this token. */
 .fading > * {
   opacity: 0;
-  transition: opacity 150ms var(--ds-ease-in-out);
+  transition: opacity var(--dsh-motion-close, 220ms) var(--dsh-motion-ease-close, ease);
 }
 
-/* Wide-only content fades back in on expand remount. */
+/* Wide-only content fades back in on expand remount, on the opening clock: the
+   labels arrive with the column instead of being fully drawn halfway through
+   its slide. */
 .wide {
-  animation: wide-in 200ms var(--ds-ease-in-out);
+  animation: wide-in var(--dsh-motion-open, 260ms) var(--dsh-motion-ease-open, ease);
 }
 
 @keyframes wide-in {
   from { opacity: 0; }
 }
 
-/* At the 150ms rail settle, the upper controls enter from the former
-   rail right edge over the remaining 150ms of the AppFrame track transition.
-   The bottom-pinned settings seat shares their opacity timeline but stays
-   horizontally fixed. Only a live collapse gets .railIn; a cold collapsed
-   render stays static. */
+/* When the column settles into its rail, the upper controls enter from the
+   former rail right edge. This is a separate beat, not part of the track: it
+   starts once the wide content has been swapped out, so it is short and reads
+   as the rail arriving rather than as a second slide. The bottom-pinned
+   settings seat shares the opacity timeline but stays horizontally fixed. Only
+   a live collapse gets .railIn; a cold collapsed render stays static. */
 .railIn .iconButton,
 .railIn .newSession,
 .railIn .panelList,
 .railIn .regionArea {
-  animation: rail-in 150ms var(--ds-ease-in-out) backwards;
+  animation: rail-in var(--dsh-motion-rail-in, 150ms) var(--dsh-motion-ease-close, ease) backwards;
 }
 
 .railIn .footArea {
-  animation: rail-fade-in 150ms var(--ds-ease-in-out) backwards;
+  animation: rail-fade-in var(--dsh-motion-rail-in, 150ms) var(--dsh-motion-ease-close, ease) backwards;
 }
 
 @keyframes rail-in {
@@ -652,7 +841,7 @@
   inset-inline: 0;
   bottom: 0;
   height: 24px;
-  background: linear-gradient(to bottom, transparent, var(--dsw-specific-sidebar-fill));
+  background: linear-gradient(to bottom, transparent, var(--dsh-idea-body-fill, #000));
   pointer-events: none;
 }
 
@@ -872,6 +1061,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   :global([data-animating]:not([data-dragging])) .root,
+  :global([data-animating]:not([data-dragging])) .buttonPanel,
+  :global([data-animating][data-sidebar-collapsed]:not([data-dragging])) .root,
+  :global([data-animating][data-sidebar-collapsed]:not([data-dragging])) .buttonPanel,
   .wide,
   .fading > *,
   .railIn .iconButton,
@@ -884,20 +1076,12 @@
   }
 }
 
-/* Selected activity-rail body: the shell owns the box so registrants only
-   supply content, and it keeps the column's paint and padding. */
+/* Selected activity-rail body: the box itself is the shared slab above, so only
+   what a panel body adds to the column is declared here. */
 .buttonPanel {
-  display: flex;
-  flex-direction: column;
   flex: 1;
   min-width: 0;
-  height: 100%;
-  padding: 6px var(--dsh-sidebar-inline-padding);
-  box-sizing: border-box;
   overflow: hidden;
-  background: var(--dsw-specific-sidebar-fill);
-  color: var(--dsw-alias-label-primary);
-  font-size: 14px;
 }
 
 .buttonPanelEmpty {

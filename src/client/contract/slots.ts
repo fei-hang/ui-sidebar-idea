@@ -100,6 +100,14 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
      * in its SessionProvider, so a body draws nothing until a Session exists.
      */
     'sidebar.button.panel': { kind: 'list'; scope: 'session-maybe'; owner: SidebarButtonPanelOwnerProps }
+    /**
+     * The Session-bound body of the bottom terminal panel, rendered inside
+     * the `shell.bottom` seat's Session area. Declared by the terminal
+     * panel's own registration so that panel receives `SessionProvider`:
+     * `shell.bottom` carries no Session binding of its own, and this child
+     * is what lets the terminal name the current Session.
+     */
+    'sidebar.terminal.panel': { kind: 'single'; scope: 'session-maybe'; owner: SidebarTerminalPanelOwnerProps }
   }
 }
 
@@ -238,6 +246,17 @@ export interface SidebarButtonOwnerProps {
 export interface SidebarButtonPanelOwnerProps {
   /** Whether this body belongs to the selected rail item. */
   readonly active: boolean
+}
+
+/**
+ * Owner share of the bottom terminal panel's Session body. The panel box owns
+ * whether it is on screen; the body needs that fact to hand the keyboard to the
+ * focused tab's emulator, which cannot tell on its own whether the zero-height
+ * box it lives in is open or merely closed.
+ */
+export interface SidebarTerminalPanelOwnerProps {
+  /** Whether the panel is expanded on screen (false while it is a zero-height box). */
+  readonly visible: boolean
 }
 
 /** One activity-rail registration projected from its slot entry. */

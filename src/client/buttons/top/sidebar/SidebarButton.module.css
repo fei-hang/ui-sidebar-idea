@@ -1,0 +1,31 @@
+/* The sidebar button: a 40px box in the rail's icon column, painted only on
+   hover or while it is the active face of the strip. */
+
+.panelButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--dsh-rail-button);
+  height: var(--dsh-rail-button);
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.panelButton:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.panelButton:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l1);
+  outline-offset: 1px;
+}
+
+.panelButtonActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}

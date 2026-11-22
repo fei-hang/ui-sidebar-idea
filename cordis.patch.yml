@@ -19,6 +19,16 @@
 - id: ui-sidebar
   disabled: true
 
+# The stock right sidebar terminal claims the one keyboard default this panel
+# wants: `terminal.new` on Ctrl+` (Command+` on macOS). A command id belongs to
+# one package and the registry rejects a second command sharing a default, so
+# the bottom panel's command could not register beside it. Disabling the package
+# gives the gesture to the panel, and the right sidebar simply carries no
+# terminal tabs. A profile without this entry keeps both: the panel still opens
+# from its rail button, and the key stays with the package that got there first.
+- id: ui-sidebar-terminal
+  disabled: true
+
 - insert:
     - id: dsh-client-ui-sidebar-idea
       name: dsh-client-ui-sidebar-idea

@@ -1,0 +1,93 @@
+/* The tab row at the top of the panel, replacing a plain title.
+   The strip is the scrolling tab list; the plus is its last child, so it sits
+   right after the last tab and scrolls with the row it extends. */
+.strip {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.tabs {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+.tab {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border-radius: var(--dsw-radius-sm, 4px);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.tab:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.tabActive {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.label {
+  max-width: 160px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.close,
+.add {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--dsw-radius-sm, 4px);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.add {
+  width: 24px;
+  height: 24px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+/* The plus trails the tabs, so its breathing room sits on the tab side. */
+.add {
+  margin-left: 2px;
+}
+
+.close:hover,
+.add:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.close:focus-visible,
+.add:focus-visible,
+.label:focus-visible {
+  outline: 2px solid var(--dsw-alias-border-l1);
+  outline-offset: 1px;
+}

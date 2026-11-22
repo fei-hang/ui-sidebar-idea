@@ -5,17 +5,19 @@
    the tail group to the bottom. */
 
 .rail {
-  --dsh-rail-width: 48px;
+  /* The width is the page's `--dsh-rail-width`, declared in
+     shell/SidebarRoot.module.css: the bottom panel's gutter has to match it and
+     lives outside this column, so the value cannot live here. */
   --dsh-rail-button: 40px;
   display: flex;
   flex-direction: column;
   flex: none;
-  width: var(--dsh-rail-width);
+  width: var(--dsh-rail-width, 48px);
   height: 100%;
   padding: 6px 0;
   box-sizing: border-box;
   align-items: center;
-  background: var(--dsw-specific-rail-fill);
+  background: var(--dsh-idea-rail-fill, var(--dsw-specific-sidebar-fill));
 }
 
 /* Windows desktop, collapsed: ui-layout zeroes the sidebar track, so anything laid
@@ -62,33 +64,4 @@
 /* Drop indicator: the row the dragged button lands on. */
 .rowOver {
   box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
-}
-
-.panelButton {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--dsh-rail-button);
-  height: var(--dsh-rail-button);
-  padding: 0;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
-}
-
-.panelButton:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
-}
-
-.panelButton:focus-visible {
-  outline: 2px solid var(--dsw-alias-border-l1);
-  outline-offset: 1px;
-}
-
-.panelButtonActive {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-primary);
 }

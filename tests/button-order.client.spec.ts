@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** Activity-rail order and selection stay in memory per rail and survive absent ids. */
 import { describe, expect, it, vi } from 'vitest'
-import { createButtonOrder, orderRail } from '../src/client/rail/button-order.ts'
+import { createButtonOrder, orderRail } from '../src/client/status/button-order.ts'
 
 describe('createButtonOrder', () => {
   it('starts empty with no selected button', () => {
@@ -50,6 +50,41 @@ describe('createButtonOrder', () => {
     expect(listener).toHaveBeenCalledTimes(1)
     order.select(null)
     expect(order.selected.getSnapshot()).toBeNull()
+  })
+})
+
+describe('seed', () => {
+  it('adopts the rendered order before the first drag', () => {
+    const order = createButtonOrder()
+    order.seed('top', ['alpha', 'beta', 'gamma'])
+    expect(order.order.getSnapshot().top).toEqual(['alpha', 'beta', 'gamma'])
+    // The rail anchors a downward drop to the target's successor, so dragging
+    // the first row past the last one passes null and lands at the end.
+    order.move('top', 'alpha', null)
+    expect(order.order.getSnapshot().top).toEqual(['beta', 'gamma', 'alpha'])
+  })
+
+  it('lets a downward drag reorder instead of appending', () => {
+    const order = createButtonOrder()
+    order.seed('top', ['alpha', 'beta', 'gamma'])
+    // Dropping onto beta while dragging down anchors to beta's successor.
+    order.move('top', 'alpha', 'gamma')
+    expect(order.order.getSnapshot().top).toEqual(['beta', 'alpha', 'gamma'])
+    order.seed('top', ['beta', 'alpha', 'gamma'])
+    // The rail passes null when the target is the last row, so the drag lands.
+    order.move('top', 'beta', null)
+    expect(order.order.getSnapshot().top).toEqual(['alpha', 'gamma', 'beta'])
+  })
+
+  it('keeps ids it has never seen and stays quiet when already seeded', () => {
+    const order = createButtonOrder()
+    order.move('top', 'beta', null)
+    order.seed('top', ['alpha', 'beta'])
+    expect(order.order.getSnapshot().top).toEqual(['alpha', 'beta'])
+    const listener = vi.fn()
+    order.order.subscribe(listener)
+    order.seed('top', ['alpha', 'beta'])
+    expect(listener).not.toHaveBeenCalled()
   })
 })
 

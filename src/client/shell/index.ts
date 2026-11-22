@@ -25,9 +25,10 @@ import type {} from '@deepseek-ai/dsh-client-product-analytics/client'
 import type {
   SidebarButtonMetadata, SidebarPanelMetadata, SidebarRootInjected, SidebarSectionInjected,
 } from '../contract/slots.ts'
-import { createButtonOrder, orderRail, type ButtonRail } from '../rail/button-order.ts'
-import type { SidebarRailActions } from '../rail/rail.ts'
-import { createPanelPins } from '../rail/panel-pins.ts'
+import { createButtonOrder, orderRail, type ButtonRail } from '../status/button-order.ts'
+import type { SidebarRailActions } from '../status/rail.ts'
+import { createPanelPins } from '../status/panel-pins.ts'
+import { SIDEBAR_BUTTON_ID } from '../buttons/rail/ActivityRail.tsx'
 import { en, ja, es, fr, de, ru, pt, zh, type SidebarKey } from '../locales/shell.ts'
 import { HeaderLeadingControls } from './HeaderLeadingControls.tsx'
 import { SidebarRoot } from './SidebarRoot.tsx'
@@ -81,15 +82,22 @@ export function applyShell(ctx: ClientContext): ShellHandle {
   const buttonOrder = createButtonOrder()
   const topButtons = createSnapshotStore<readonly SidebarButtonMetadata[]>([])
   const tailButtons = createSnapshotStore<readonly SidebarButtonMetadata[]>([])
+  // The strip's own toggle is not a slot registration, but it is one more row
+  // in the head group: projecting it here is what makes it draggable alongside
+  // the registrants instead of being nailed above them.
+  const sidebarButtonLabel = (): string => ctx.locale.bind('sidebar')('rail.panel')
   const syncButtons = (): void => {
     const project = (seat: 'sidebar.button.top' | 'sidebar.button.tail', target: typeof topButtons): void => {
       // Registration order is the default arrangement: list entries already
       // arrive sorted by (priority, order), so the stored drag order only has
       // to reorder the ids that are still registered.
-      const registered = ctx.slots.entriesOfSlot(seat).flatMap(({ options }) => {
+      const entries = ctx.slots.entriesOfSlot(seat).flatMap(({ options }) => {
         const id = options.id
         return id === undefined ? [] : [{ id, label: resolveSlotLabel(options.label) ?? id }]
       })
+      const registered = seat === 'sidebar.button.top'
+        ? [{ id: SIDEBAR_BUTTON_ID, label: sidebarButtonLabel() }, ...entries]
+        : entries
       const byId = new Map(registered.map(entry => [entry.id, entry]))
       const stored = buttonOrder.order.getSnapshot()[seat === 'sidebar.button.top' ? 'top' : 'tail']
       const next = orderRail(registered.map(({ id }) => id), stored).flatMap(id => {
@@ -129,7 +137,13 @@ export function applyShell(ctx: ClientContext): ShellHandle {
     setPinned: panelPins.setPinned,
     selectButton: (id) => { buttonOrder.select(id) },
     reportCollapsed: (next) => { collapsed = next },
-    moveButton: (rail: ButtonRail, id, beforeId) => { buttonOrder.move(rail, id, beforeId) },
+    moveButton: (rail: ButtonRail, id, beforeId) => {
+      // The store only remembers ids the user already dragged; adopt the row
+      // order on screen first, or a drag against a partial list is a no-op.
+      const shown = (rail === 'top' ? topButtons : tailButtons).getSnapshot()
+      buttonOrder.seed(rail, shown.map(entry => entry.id))
+      buttonOrder.move(rail, id, beforeId)
+    },
     trackEntryClick: (attributes) => { ctx.get('productAnalytics')?.track('sidebar_menu_click', attributes) },
     hooks: {
       panels,

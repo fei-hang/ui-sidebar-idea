@@ -9,7 +9,8 @@
  * @module tsdown.config
  */
 import { readFile } from 'node:fs/promises'
-import { basename, dirname, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { basename, dirname, isAbsolute, resolve } from 'node:path'
 import { defineConfig } from 'tsdown'
 import { transform } from 'lightningcss'
 
@@ -50,10 +51,12 @@ function requestedExternals(): ReadonlySet<string> {
 const externals = await requestedExternals()
 
 /**
- * One virtual module that installs a stylesheet and exports its class map.
- * @param fileId - absolute stylesheet path, which also names the style tag.
+ * Compile one stylesheet and wrap it as a module that installs the CSS and
+ * exports its class map. A plain stylesheet exports nothing; its import is
+ * still the only thing that installs the rules.
+ * @param fileId - absolute path of the stylesheet, used as the tag identity.
  * @param css - the compiled stylesheet text.
- * @param classMap - local class name to compiled class name.
+ * @param classMap - local class name to compiled class name, empty for a plain stylesheet.
  * @returns the module source.
  */
 function styleInjectionModule(fileId: string, css: string, classMap: Record<string, string>): string {
@@ -70,26 +73,54 @@ if (typeof document !== 'undefined' && document.querySelector('style[data-plugin
 export default ${JSON.stringify(classMap)};`
 }
 
-/** Compile `*.module.css` through lightningcss and inject the result. */
+/**
+ * Whether one import specifier names a stylesheet this plugin compiles.
+ *
+ * `*.module.css` keeps its scoped class map. Plain `*.css` is compiled too,
+ * because a dependency's stylesheet (xterm's, for one) must land in the same
+ * inline style tag as our own: the served page has no other way to fetch it.
+ * @param source - the import specifier.
+ * @returns whether the plugin owns the file.
+ */
+function isStylesheet(source: string): boolean {
+  return source.endsWith('.css')
+}
+
+/** Resolves a package specifier the way Node does, so a dependency's stylesheet is found. */
+const requireFromHere = createRequire(import.meta.url)
+
+/**
+ * Absolute path of one stylesheet import.
+ * @param source - the import specifier, relative, absolute, or a package path.
+ * @param importer - the importing file, absent for the entry.
+ * @returns the absolute path lightningcss should read.
+ */
+function stylesheetPath(source: string, importer: string | undefined): string {
+  if (isAbsolute(source)) return source
+  if (source.startsWith('.')) {
+    return importer === undefined ? resolve(source) : resolve(dirname(importer), source)
+  }
+  return requireFromHere.resolve(source)
+}
+
+/** Compile `*.module.css` and `*.css` through lightningcss and inject the result. */
 const cssModulesPlugin = {
-  name: 'dsh-css-modules-inline',
+  name: 'dsh-css-inline',
   resolveId(source: string, importer: string | undefined) {
-    if (!source.endsWith('.module.css')) return null
-    const absolute = importer === undefined
-      ? resolve(source)
-      : resolve(dirname(importer), source)
-    return CSS_VIRTUAL_PREFIX + absolute + CSS_VIRTUAL_SUFFIX
+    if (!isStylesheet(source)) return null
+    return CSS_VIRTUAL_PREFIX + stylesheetPath(source, importer) + CSS_VIRTUAL_SUFFIX
   },
   async load(virtualId: string) {
     if (!virtualId.startsWith(CSS_VIRTUAL_PREFIX)) return null
     const fileId = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
     this.addWatchFile(fileId)
     const source = await readFile(fileId)
+    const scoped = fileId.endsWith('.module.css')
     const { code, exports: cssExports } = transform({
       filename: fileId,
       code: source,
-      cssModules: { pattern: '[hash]_[local]' },
       minify: true,
+      ...(scoped ? { cssModules: { pattern: '[hash]_[local]' } } : {}),
     })
     const classMap: Record<string, string> = {}
     const entries = Object.entries(cssExports ?? {})

@@ -28,6 +28,17 @@ export interface ButtonOrder {
    */
   readonly move: (rail: ButtonRail, id: string, beforeId: string | null) => void
   /**
+   * Adopt the rail's current render order before a drag rewrites it.
+   *
+   * A stored list only holds ids the user has dragged, so it is usually shorter
+   * than what is on screen; moving against such a list appends the rest and the
+   * drag appears to do nothing. Seeding first makes the drag operate on the
+   * order the user can actually see.
+   * @param rail - Rail whose render order is being adopted.
+   * @param ids - Ids in the order they are drawn right now.
+   */
+  readonly seed: (rail: ButtonRail, ids: readonly string[]) => void
+  /**
    * Select a rail id, or clear the selection.
    * @param id - Id to select; null returns the rail to the panel list.
    */
@@ -57,6 +68,17 @@ export function createButtonOrder(): ButtonOrder {
     if (next.length === current.length && next.every((entry, index) => entry === current[index])) return
     store.set({ ...store.getSnapshot(), order: { ...order, [rail]: next } })
   }
+  const seed: ButtonOrder['seed'] = (rail, ids) => {
+    const { order } = store.getSnapshot()
+    const current = order[rail]
+    // The rendered order wins outright here; orderRail would put stored ids
+    // first, which is exactly the mismatch seeding is meant to remove. Stored
+    // ids the rail no longer shows are kept on the end so a button that is
+    // temporarily unregistered keeps its place.
+    const next = [...ids, ...current.filter(id => !ids.includes(id))]
+    if (next.length === current.length && next.every((entry, index) => entry === current[index])) return
+    store.set({ ...store.getSnapshot(), order: { ...order, [rail]: next } })
+  }
   return {
     order: {
       getSnapshot: () => store.getSnapshot().order,
@@ -67,6 +89,7 @@ export function createButtonOrder(): ButtonOrder {
       subscribe: listener => store.subscribe(listener),
     },
     move,
+    seed,
     select: (id) => {
       if (store.getSnapshot().selected === id) return
       store.set({ ...store.getSnapshot(), selected: id })

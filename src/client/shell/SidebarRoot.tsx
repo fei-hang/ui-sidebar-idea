@@ -32,14 +32,28 @@ import type {
   SidebarPanelActionsOwnerProps, SidebarPanelMetadata, SidebarRootComponentProps, SidebarRootInjected,
   SidebarSectionHookContext, SidebarSectionOwnerProps,
 } from '../contract/slots.ts'
-import { ActivityRail, RAIL_WIDTH } from './ActivityRail.tsx'
-import { FIXED_PANEL_ID } from '../rail/panel-pins.ts'
+import { ActivityRail, RAIL_WIDTH } from '../buttons/rail/ActivityRail.tsx'
+import { FIXED_PANEL_ID } from '../status/panel-pins.ts'
 import { createScrollHandoff } from './scroll-handoff.ts'
 import css from './SidebarRoot.module.css'
 import type {} from '@deepseek-ai/dsh-api-remote-access/client'
 
-/** Wide-content unmount delay; matches the 150ms wide-content fade-out. */
-const COLLAPSE_SETTLE_MS = 150
+/**
+ * Wide-content unmount delay, read from the stylesheet instead of copied here.
+ * The fade it follows (.fading > * in SidebarRoot.module.css) and the column's
+ * own track now run on the shared closing clock, so a hand-copied number would
+ * drift out of step the moment that clock changed — and the content would
+ * unmount mid-fade. Read the token, fall back only if it cannot be resolved.
+ */
+const COLLAPSE_SETTLE_FALLBACK_MS = 220
+function collapseSettleMs(): number {
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--dsh-motion-close').trim()
+  const value = Number.parseFloat(raw)
+  if (!Number.isFinite(value)) return COLLAPSE_SETTLE_FALLBACK_MS
+  if (raw.endsWith('ms')) return value
+  if (raw.endsWith('s')) return value * 1000
+  return COLLAPSE_SETTLE_FALLBACK_MS
+}
 
 /**
  * How long the column's scrollbars stay drawn after the pointer leaves it.
@@ -196,7 +210,7 @@ export function SidebarRoot({
   const [settled, setSettled] = useState(collapsed)
   useEffect(() => {
     if (drawer || !collapsed) { setSettled(collapsed); return }
-    const timer = window.setTimeout(() => { setSettled(true) }, COLLAPSE_SETTLE_MS)
+    const timer = window.setTimeout(() => { setSettled(true) }, collapseSettleMs())
     return () => { window.clearTimeout(timer) }
   }, [collapsed, drawer])
   // The rail's service reveals the column before it shows a body, and only the
@@ -204,12 +218,19 @@ export function SidebarRoot({
   // guess from a snapshot it cannot see.
   useEffect(() => { reportCollapsed(collapsed) }, [collapsed, reportCollapsed])
   const windowsTitlebar = document.documentElement.hasAttribute('data-windows-titlebar')
+  // Wide content outlives the collapse flag only where the column slides: there
+  // the frozen slab is clipped by the shrinking track, which is what the fade
+  // runs against. On Windows the collapsed track is 0px wide, so the column does
+  // not slide past a slab — it has to give up its width for the track to close
+  // at all. Keeping the slab mounted there holds the track open (a grid item
+  // cannot shrink below its content), and the column visibly stays wide until
+  // the content unmounts and then snaps shut.
   const wide = drawer || (windowsTitlebar ? !collapsed : !collapsed || !settled)
   // Windows desktop drops the collapsed sidebar track to zero width (ui-layout's
   // collapsedWidth is 0 whenever the document carries data-windows-titlebar), so
   // anything laid out inside it is clipped away — including the rail. The rail
   // alone therefore steps out of the column and pins itself to the window edge
-  // (.railFixed in ActivityRail.module.css). It is pinned in both states rather
+  // (the pinned rail in buttons/rail/ActivityRail.module.css). It is pinned in both states rather
   // than only when collapsed: a rail that changes positioning mode has to do so
   // on some frame, and that frame is a visible jump. The layout frame itself is
   // left alone, so ui-layout's track animation runs exactly as it does in the
@@ -233,6 +254,12 @@ export function SidebarRoot({
   // rail layout (.collapsed styles) only applies once the fade settles.
   const lastWideWidth = useRef(width)
   if (drawer || !collapsed) lastWideWidth.current = width
+
+  // Both bodies the rail can open get the same width: the width the column was
+  // given, minus the rail it sits beside, frozen at its expanded value while it
+  // fades out. Computed once so the panel list and a registrant's panel cannot
+  // disagree about where the column ends.
+  const bodyWidth = Math.max(0, (!drawer && collapsed ? lastWideWidth.current : width) - RAIL_WIDTH)
 
   // A closed drawer returns to the static rail; only a live collapse fades it in.
   const animateRail = useRef(!collapsed)
@@ -364,7 +391,6 @@ export function SidebarRoot({
         selected={selectedButton}
         panelActive={!collapsed && selectedButton === null}
         label={t('rail.label')}
-        panelLabel={t('rail.panel')}
         onSelect={(id) => {
           // A rail item toggles its own body: the first press reveals the column
           // and draws that body, a second press closes the body and the column
@@ -395,7 +421,7 @@ export function SidebarRoot({
       {selectedButton === null ? (
       <div
         className={clsx(css.root, !wide && css.collapsed)}
-        style={wide ? { width: Math.max(0, (!drawer && collapsed ? lastWideWidth.current : width) - RAIL_WIDTH) } : undefined}
+        style={wide ? { width: bodyWidth } : undefined}
       >
       {/* macOS hiddenInset titlebar: the strip shares the row with the
           traffic lights and keeps the toggle at the sidebar's top-right. */}
@@ -544,7 +570,7 @@ export function SidebarRoot({
       ) : (
       <div
         className={css.buttonPanel}
-        style={{ width: Math.max(0, (!drawer && collapsed ? lastWideWidth.current : width) - RAIL_WIDTH) }}
+        style={{ width: bodyWidth }}
       >
         {/* Panel bodies address Session-owned data (a workspace file tree lists
             through a Session's Remote), so the box owns the Session area and a
