@@ -21,15 +21,13 @@
     "lib",
     "locale",
     "cordis.patch.yml",
-    "README.md"
+    "README.md",
+    "README.zh-CN.md"
   ],
   "scripts": {
     "build": "tsdown",
-    "watch": "tsdown --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "smoke": "node scripts/smoke.mjs",
-    "check": "pnpm typecheck && pnpm test && pnpm build && pnpm smoke"
+    "install:profile": "node scripts/install.mjs",
+    "check": "tsc --noEmit && vitest run && pnpm build && node scripts/smoke.mjs"
   },
   "dsh": {
     "engines": {

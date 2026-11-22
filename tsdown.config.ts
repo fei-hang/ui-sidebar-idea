@@ -10,7 +10,8 @@
  */
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { basename, dirname, isAbsolute, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, relative, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'tsdown'
 import { transform } from 'lightningcss'
 
@@ -18,6 +19,27 @@ const ID = 'dsh-client-ui-sidebar-idea'
 const CSS_VIRTUAL_PREFIX = '\0dsh-css:'
 /** The suffix must not read as `.css`, or tsdown's own stylesheet pipeline claims the id. */
 const CSS_VIRTUAL_SUFFIX = '.mjs'
+/** This package's directory, which virtual ids are written relative to. */
+const PACKAGE_ROOT = dirname(fileURLToPath(import.meta.url))
+/** The real file behind each virtual id, keyed by the id. */
+const cssFiles = new Map<string, string>()
+
+/**
+ * The virtual id for one stylesheet.
+ *
+ * Bundlers keep a module id in the output (rollup writes it into a comment above
+ * the module), so an absolute id would publish this machine's directory layout
+ * in every build. The id is therefore package-relative, with forward slashes so
+ * the same source produces the same id on every platform. A stylesheet reached
+ * through `node_modules` sits above this package and keeps a `../` prefix.
+ * @param fileId - absolute path of the stylesheet.
+ * @returns the virtual id, remembered against its file.
+ */
+function virtualIdOf(fileId: string): string {
+  const id = CSS_VIRTUAL_PREFIX + relative(PACKAGE_ROOT, fileId).replaceAll('\\', '/') + CSS_VIRTUAL_SUFFIX
+  cssFiles.set(id, fileId)
+  return id
+}
 
 /**
  * The shared module table: these specifiers stay `require()` calls answered by
@@ -108,11 +130,12 @@ const cssModulesPlugin = {
   name: 'dsh-css-inline',
   resolveId(source: string, importer: string | undefined) {
     if (!isStylesheet(source)) return null
-    return CSS_VIRTUAL_PREFIX + stylesheetPath(source, importer) + CSS_VIRTUAL_SUFFIX
+    return virtualIdOf(stylesheetPath(source, importer))
   },
   async load(virtualId: string) {
     if (!virtualId.startsWith(CSS_VIRTUAL_PREFIX)) return null
-    const fileId = virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length)
+    const fileId = cssFiles.get(virtualId)
+      ?? resolve(PACKAGE_ROOT, virtualId.slice(CSS_VIRTUAL_PREFIX.length, -CSS_VIRTUAL_SUFFIX.length))
     this.addWatchFile(fileId)
     const source = await readFile(fileId)
     const scoped = fileId.endsWith('.module.css')
