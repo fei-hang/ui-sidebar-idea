@@ -63,7 +63,7 @@ export function TerminalSettingsSection(props: TerminalSettingsSectionProps): Re
     <div className={css.page}>
       <h2 className={css.title}>{t('settings.title')}</h2>
       <p className={css.hint}>{t('settings.description')}</p>
-      <TerminalProfiles panel={panel} shells={shells} t={t} />
+      <TerminalProfiles panel={panel} t={t} />
     </div>
   )
 }
